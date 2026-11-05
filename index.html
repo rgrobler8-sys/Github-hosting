@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!-- HTML is the structure of the page. GitHub Pages looks for a file named
+     "index.html" and serves it as your site's home page. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Makes the page scale properly on phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The text shown on the browser tab -->
+  <title>Host a Page on GitHub</title>
+
+  <!-- CSS controls how the page looks. Each block is: selector { property: value; } -->
+  <style>
+    /* body = the whole page: font, centered column, spacing */
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #222; }
+    h1 { margin-bottom: 0.25rem; }
+    /* ".card" targets any element with class="card": a bordered box */
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    /* flex puts the checkbox and its text side by side */
+    .step { display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.6rem 0; }
+    /* ".step.done" = an element with BOTH classes; JavaScript adds "done" when ticked */
+    .step.done span { text-decoration: line-through; color: #888; }
+    progress { width: 100%; height: 1.2rem; }
+    input { padding: 0.4rem; margin: 0.2rem 0.5rem 0.6rem 0; width: 12rem; }
+    pre { background: #f4f4f4; padding: 0.75rem; border-radius: 6px; overflow-x: auto; position: relative; }
+    button { cursor: pointer; padding: 0.35rem 0.8rem; }
+    /* "#url" targets the element with id="url"; break-word stops long URLs overflowing */
+    #url { font-weight: bold; word-break: break-all; }
+    /* Hidden by default; JavaScript shows it when every step is done */
+    #celebrate { display: none; color: #1a7f37; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Host a Page on GitHub</h1>
+  <p>If you're reading this at a <code>github.io</code> address, you did it.</p>
+
+  <!-- Section 1: inputs. The "id" attributes let JavaScript find these elements. -->
+  <div class="card">
+    <h2>1. Your details</h2>
+    <label>GitHub username <input id="user" placeholder="octocat"></label>
+    
+<p></p>
+    <label>Repo name <input id="repo" value="my-first-page"></label>
+    <!-- JavaScript fills this empty span with your live URL -->
+    <p>Your live URL will be:<br><span id="url"></span></p>
+  </div>
+
+  <!-- Section 2: the git commands, also filled in by JavaScript -->
+  <div class="card">
+    <h2>2. Your commands</h2>
+    <p>Create an empty <b>public</b> repo on github.com with the name above (no README), then run this in the project folder:</p>
+    <pre id="commands"></pre>
+    <button id="copy">Copy commands</button>
+  </div>
+
+  <!-- Section 3: checklist. The steps themselves are created by JavaScript. -->
+  <div class="card">
+    <h2>3. Checklist</h2>
+    <progress id="bar" max="5" value="0"></progress>
+    <div id="steps"></div>
+    <p id="celebrate">All done. Open your live URL and check this page loads.</p>
+  </div>
+
+  <!-- JavaScript makes the page interactive. It runs in the visitor's browser,
+       so no server is needed. That's why GitHub Pages can host it. -->
+  <script>
+    // The checklist text. An array is a list; the first item is position 0.
+    const steps = [
+      "Create a free account at github.com",
+      "Create a new public repo (no README)",
+      "Run the commands above to push index.html",
+      "Repo → Settings → Pages → Source: 'Deploy from a branch' → main / (root) → Save",
+      "Wait about a minute, then open your live URL"
+    ];
+
+    // Shortcut: $("user") finds the element with id="user"
+    const $ = id => document.getElementById(id);
+
+    // localStorage is a small notepad saved in the browser. It survives refreshes.
+    // Read a saved value, or use the fallback if nothing is saved yet.
+    const load = (key, fallback) => localStorage.getItem(key) ?? fallback;
+
+    // Rebuilds the URL and commands from whatever is typed in the boxes
+    function render() {
+      // .trim() removes stray spaces; "||" uses a placeholder if the box is empty
+      const user = $("user").value.trim() || "YOUR-USERNAME";
+      const repo = $("repo").value.trim() || "YOUR-REPO";
+
+      // Backticks allow ${...} to drop variables into text
+      $("url").textContent = `https://${user}.github.io/${repo}/`;
+      $("commands").textContent =
+`git init
+git add index.html
+git commit -m "First page"
+git branch -M main
+git remote add origin https://github.com/${user}/${repo}.git
+git push -u origin main`;
+
+      // Remember what was typed
+      localStorage.setItem("user", $("user").value);
+      localStorage.setItem("repo", $("repo").value);
+    }
+
+    // Draws the checklist and progress bar from the saved list of finished steps
+    function renderSteps() {
+      // Saved data is text, so JSON.parse turns it back into a list, e.g. [0, 2]
+      const done = JSON.parse(load("done", "[]"));
+      $("steps").innerHTML = "";  // clear the old list before redrawing
+
+      // Loop over every step: "text" is the step, "i" is its position
+      steps.forEach((text, i) => {
+        const row = document.createElement("label");  // make a new element
+        row.className = "step" + (done.includes(i) ? " done" : "");
+        row.innerHTML = `<input type="checkbox" ${done.includes(i) ? "checked" : ""}><span>${text}</span>`;
+
+        // Runs when the checkbox is clicked
+        row.querySelector("input").onchange = e => {
+          // Ticked: add this step to the list. Unticked: remove it.
+          const next = e.target.checked ? [...done, i] : done.filter(n => n !== i);
+          localStorage.setItem("done", JSON.stringify(next));  // save as text
+          renderSteps();  // redraw with the new state
+        };
+        $("steps").appendChild(row);  // add the row to the page
+      });
+
+      $("bar").value = done.length;  // progress bar = number of finished steps
+      // Show the success message only when every step is done
+      $("celebrate").style.display = done.length === steps.length ? "block" : "none";
+    }
+
+    // --- Runs once when the page loads ---
+
+    // Restore anything saved from your last visit
+    $("user").value = load("user", "");
+    $("repo").value = load("repo", "my-first-page");
+
+    // Update the URL and commands every time you type in either box
+    $("user").oninput = $("repo").oninput = render;
+
+    // Copy button: put the commands on the clipboard and give feedback
+    $("copy").onclick = () => {
+      navigator.clipboard.writeText($("commands").textContent);
+      $("copy").textContent = "Copied!";
+    };
+
+    // Draw everything for the first time
+    render();
+    renderSteps();
+  </script>
+</body>
+</html>
